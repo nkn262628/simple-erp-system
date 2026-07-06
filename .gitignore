@@ -1,0 +1,11 @@
+# Windows 系統雜訊檔
+Thumbs.db
+desktop.ini
+
+# Word / PowerPoint 暫存鎖定檔
+~$*.docx
+~$*.pptx
+~$*.xlsx
+
+# 編輯器產生的檔案
+.vscode/

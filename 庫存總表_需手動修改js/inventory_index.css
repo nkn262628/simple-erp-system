@@ -1,0 +1,292 @@
+/* ═══════════════════════════════════════════════
+   inventory-index.css
+   庫存總表（index view）專用樣式
+   ═══════════════════════════════════════════════ */
+
+/* ── 根容器 ── */
+#inv-dashboard {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
+    font-size: 14px;
+    margin: 0 0 24px;
+    color: #111827;
+}
+
+/* ── 控制列 ── */
+#inv-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 4px 0 16px;
+}
+
+#inv-ctrl select {
+    padding: 7px 32px 7px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111827;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23888' stroke-width='2' d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    min-width: 180px;
+    font-family: inherit;
+}
+#inv-ctrl select:focus {
+    outline: none;
+    border-color: #6b7280;
+    box-shadow: 0 0 0 3px rgba(107,114,128,0.12);
+}
+
+/* ── 篩選藥丸 ── */
+.inv-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.inv-pill {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 20px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+    line-height: 1;
+}
+.inv-pill:hover { border-color: #9ca3af; color: #374151; }
+.inv-pill.on-all   { background: #534AB7; border-color: #534AB7; color: #fff; }
+.inv-pill.on-ok    { background: #EAF3DE; border-color: #3B6D11; color: #27500A; }
+.inv-pill.on-low   { background: #FAEEDA; border-color: #854F0B; color: #633806; }
+.inv-pill.on-empty { background: #FCEBEB; border-color: #A32D2D; color: #791F1F; }
+
+/* ── 統計卡列 ── */
+#inv-stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.inv-stat {
+    background: #f9fafb;
+    border: 1px solid #f3f4f6;
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: center;
+}
+.inv-stat-n {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+}
+.inv-stat-l {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* ── 表格外框 ──
+   桌面版用 overflow:hidden 讓圓角乾淨裁切表格；
+   手機版改在下方 media query 覆寫成 overflow-x:auto，
+   否則欄位在窄螢幕會被直接裁掉而不是可以滑動看到。
+── */
+#inv-tbl-wrap {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* ── 表格主體
+      table-layout: auto  → 讓瀏覽器依內容自動分配寬度，不跑版
+      固定寬度欄位透過 <col> 指定，name 欄設 auto 自動佔剩餘空間
+   ── */
+#inv-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 14px;
+}
+
+#inv-tbl thead tr { background: #f9fafb; }
+
+#inv-tbl th {
+    padding: 11px 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    letter-spacing: .03em;
+}
+#inv-tbl th.num-col    { text-align: right; }
+#inv-tbl th.center-col { text-align: center; }
+#inv-tbl th:hover  { color: #374151; }
+#inv-tbl th.sorted { color: #111827; }
+
+.sort-icon { font-size: 10px; margin-left: 3px; opacity: .35; }
+#inv-tbl th.sorted .sort-icon { opacity: 1; }
+
+#inv-tbl td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+    color: #111827;
+}
+#inv-tbl tr:last-child td { border-bottom: none; }
+#inv-tbl tr.inv-row-hidden { display: none; }
+
+/* ── 整列可點擊 ── */
+#inv-tbl tbody tr[data-href] { cursor: pointer; }
+#inv-tbl tbody tr[data-href]:hover td { background: #f0f7ff; }
+
+/* ── 欄位樣式 ── */
+.inv-col-name {
+    font-weight: 600;
+    color: #111827;
+    max-width: 0;          /* 配合 table-layout:auto 讓 % 生效 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.inv-col-code {
+    color: #6b7280;
+    font-size: 13px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    white-space: nowrap;
+}
+.inv-col-num   { text-align: right; white-space: nowrap; }
+.inv-col-safe  { text-align: right; color: #9ca3af; white-space: nowrap; }
+.inv-col-center{ text-align: center; }
+
+.inv-unit { font-size: 11px; color: #9ca3af; }
+
+.inv-suggest-num  { color: #b91c1c; font-weight: 700; }
+.inv-suggest-zero { color: #9ca3af; }
+
+/* ── 燈號 ── */
+.inv-light {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+.inv-light-ok    { background: #639922; }
+.inv-light-low   { background: #BA7517; }
+.inv-light-empty {
+    background: #E24B4A;
+    animation: inv-blink 1.1s ease-in-out infinite;
+}
+@keyframes inv-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .2; }
+}
+
+/* ── 狀態 Badge ── */
+.inv-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    border: 1.5px solid transparent;
+}
+.inv-badge-ok    { background: #EAF3DE; color: #27500A; border-color: #639922; }
+.inv-badge-low   { background: #FAEEDA; color: #633806; border-color: #EF9F27; }
+.inv-badge-empty { background: #FCEBEB; color: #791F1F; border-color: #E24B4A; }
+
+/* ── 空狀態 ── */
+.inv-empty-row td {
+    text-align: center;
+    color: #9ca3af;
+    padding: 3rem !important;
+    font-size: 14px;
+}
+
+/* ── RWD ──
+   overflow-x: auto + 表格 min-width，讓窄螢幕可以左右滑動查看，
+   而不是被外層 overflow:hidden 直接裁掉看不到。
+── */
+@media (max-width: 768px) {
+    #inv-dashboard { font-size: 13px; }
+    #inv-stat-row { grid-template-columns: repeat(2, 1fr); }
+    #inv-tbl-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    #inv-tbl {
+        min-width: 620px; /* 保底寬度，讓欄位不會被硬擠爛 */
+    }
+    #inv-tbl th, #inv-tbl td { padding: 10px 8px; font-size: 13px; }
+    .inv-col-code { display: none; }
+    #inv-ctrl select { min-width: 0; flex: 1 1 auto; }
+    .inv-csv-btn { margin-left: 0; }
+}
+
+/* ── 全部倉庫：列高亮警示 ── */
+
+/* 缺貨列：淡紅底，左側紅色邊線 */
+#inv-tbl tbody tr.inv-row-empty td {
+    background: #fff5f5;
+    border-bottom-color: #fecaca;
+}
+#inv-tbl tbody tr.inv-row-empty td:first-child {
+    border-left: 3px solid #E24B4A;
+}
+#inv-tbl tbody tr.inv-row-empty:hover td {
+    background: #fee2e2;
+}
+
+/* 低庫存列：淡黃底，左側橘色邊線 */
+#inv-tbl tbody tr.inv-row-low td {
+    background: #fffbeb;
+    border-bottom-color: #fde68a;
+}
+#inv-tbl tbody tr.inv-row-low td:first-child {
+    border-left: 3px solid #EF9F27;
+}
+#inv-tbl tbody tr.inv-row-low:hover td {
+    background: #fef3c7;
+}
+
+/* 正常列：白底（預設），hover 保持原本淡藍 */
+#inv-tbl tbody tr.inv-row-ok td {
+    background: #fff;
+}
+#inv-tbl tbody tr.inv-row-ok:hover td {
+    background: #f0f7ff;
+}
+
+/* ── CSV 匯出按鈕 ── */
+.inv-csv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;   /* 推到最右側 */
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.inv-csv-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #111827;
+}
