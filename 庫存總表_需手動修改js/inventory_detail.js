@@ -48,9 +48,9 @@
        下面所有邏輯都不用動。
        ───────────────────────────────────────────── */
     var CONFIG = {
-        PURCHASE_APP_ID: 2287, // 🔧 [需依環境修改] 採購單 App ID
-        SALES_APP_ID: 2288,    // 🔧 [需依環境修改] 銷貨單 App ID
-        TRANSFER_APP_ID: 2291, // 🔧 [需依環境修改] 調撥單 App ID
+        PURCHASE_APP_ID: 16, // 🔧 [需依環境修改] 採購單 App ID
+        SALES_APP_ID: 17,    // 🔧 [需依環境修改] 銷貨單 App ID
+        TRANSFER_APP_ID: 20, // 🔧 [需依環境修改] 調撥單 App ID
 
         TIMELINE_FETCH_LIMIT: 50,    // 每個來源 API 撈取筆數上限
         TIMELINE_DISPLAY_LIMIT: 15,  // Timeline 畫面上顯示的筆數上限
@@ -168,14 +168,16 @@
         if (wc && pc) record['庫存識別鍵'].value = wc + '-' + pc;
     }
 
-    kintone.events.on(['app.record.create.show', 'app.record.edit.show'], function (e) {
-        calcAndUpdate(e.record); return e;
-    });
+    kintone.events.on(['app.record.create.show', 'app.record.edit.show',
+        'mobile.app.record.create.show', 'mobile.app.record.edit.show'],
+        function (e) { calcAndUpdate(e.record); return e; });
     var STOCK_FIELDS = ['進貨量', '出貨量', '預約保留量', '廢品數量', '安全庫存量'];
     var changeEvents = [];
     STOCK_FIELDS.forEach(function (f) {
         changeEvents.push('app.record.create.change.' + f);
         changeEvents.push('app.record.edit.change.' + f);
+        changeEvents.push('mobile.app.record.create.change.' + f);
+        changeEvents.push('mobile.app.record.edit.change.' + f);
     });
     kintone.events.on(changeEvents, function (e) { calcAndUpdate(e.record); return e; });
     kintone.events.on([
@@ -184,7 +186,8 @@
     ], function (e) { updateKey(e.record); calcAndUpdate(e.record); return e; });
 
     /* ── 詳細頁顯示 ── */
-    kintone.events.on('app.record.detail.show', function (event) {
+    kintone.events.on(['app.record.detail.show', 'mobile.app.record.detail.show'], function (event) {
+        var isMobile = event.type === 'mobile.app.record.detail.show';
         var record = event.record;
         var inStock = parseFloat(record['在庫量'].value) || 0;
         var safeStock = parseFloat(record['安全庫存量'].value) || 0;
@@ -197,7 +200,9 @@
         var st = getStatus(inStock, safeStock);
         var suggest = Math.max(0, safeStock - inStock);
         var invKey = record['庫存識別鍵'].value || '';
-        var appId = kintone.app.getId();
+        var appId = isMobile && kintone.mobile && kintone.mobile.app
+            ? kintone.mobile.app.getId()
+            : kintone.app.getId();
         var recId = record.$id.value;
         var productCode = record['商品料號'] ? (record['商品料號'].value || '') : '';
 
@@ -307,7 +312,9 @@
 
         var old = document.getElementById('inventory-ui');
         if (old) old.remove();
-        var space = kintone.app.record.getHeaderMenuSpaceElement();
+        var space = isMobile
+            ? kintone.mobile.app.getHeaderSpaceElement()
+            : kintone.app.record.getHeaderMenuSpaceElement();
         if (space) space.innerHTML = html;
 
         /* 原生欄位收合 */

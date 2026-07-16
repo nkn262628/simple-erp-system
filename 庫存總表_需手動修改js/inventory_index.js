@@ -74,11 +74,16 @@
        清單頁面
        ───────────────────────────────────────────── */
 
-    kintone.events.on('app.record.index.show', function (event) {
-        if (event.viewId !== TARGET_VIEW_ID) return event;
+    kintone.events.on(['app.record.index.show', 'mobile.app.record.index.show'], function (event) {
+        var isMobile = event.type === 'mobile.app.record.index.show';
+
+        // 🔧 viewId 用 String() 轉型比較，避免手機端回傳型別不同(number vs string)導致比對失敗
+        if (String(event.viewId) !== String(TARGET_VIEW_ID)) return event;
 
         var records = event.records || [];
-        var appId = kintone.app.getId();
+        var appId = isMobile && kintone.mobile && kintone.mobile.app
+            ? kintone.mobile.app.getId()
+            : kintone.app.getId();
 
 
         /* ── records → 倉庫別資料 ──
@@ -140,22 +145,26 @@
             '</button>' +
             '</div>' +
             '<div id="inv-stat-row"></div>' +
-            '<div id="inv-tbl-wrap">' +
-            '<table id="inv-tbl">' +
-            '<colgroup id="inv-colgroup"></colgroup>' +
-            '<thead><tr id="inv-thead-row">' +
-            '<th></th>' +
-            '<th data-col="name">商品名稱 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="warehouse" class="inv-col-wh-hdr" style="display:none;">倉庫 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="code">料號 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="in" class="num-col">在庫量 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="safe" class="num-col">安全庫存 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="suggest" class="num-col">建議補貨量 <span class="sort-icon">↕</span></th>' +
-            '<th data-col="status" class="center-col">狀態 <span class="sort-icon">↕</span></th>' +
-            '</tr></thead>' +
-            '<tbody id="inv-tbl-body"></tbody>' +
-            '</table>' +
-            '</div>' +
+            (isMobile
+                ? '<div id="inv-card-list"></div>'
+                :
+                '<div id="inv-tbl-wrap">' +
+                '<table id="inv-tbl">' +
+                '<colgroup id="inv-colgroup"></colgroup>' +
+                '<thead><tr id="inv-thead-row">' +
+                '<th></th>' +
+                '<th data-col="name">商品名稱 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="warehouse" class="inv-col-wh-hdr" style="display:none;">倉庫 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="code">料號 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="in" class="num-col">在庫量 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="safe" class="num-col">安全庫存 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="suggest" class="num-col">建議補貨量 <span class="sort-icon">↕</span></th>' +
+                '<th data-col="status" class="center-col">狀態 <span class="sort-icon">↕</span></th>' +
+                '</tr></thead>' +
+                '<tbody id="inv-tbl-body"></tbody>' +
+                '</table>' +
+                '</div>'
+            ) +
             '</div>';
 
         /* ── 插入 DOM ──
@@ -180,22 +189,7 @@
             var isAll = wName === ALL_KEY;
             var items = warehouseMap[wName] || [];
 
-            /* 動態 colgroup：個別倉庫 7 欄，全部倉庫 8 欄（多一倉庫欄） */
-            var colgroup = document.getElementById('inv-colgroup');
-            if (colgroup) {
-                colgroup.innerHTML = isAll
-                    ? '<col style="width:20px;"><col style="width:24%;"><col style="width:11%;"><col style="width:13%;"><col style="width:10%;"><col style="width:10%;"><col style="width:13%;"><col style="width:10%;">'
-                    : '<col style="width:20px;"><col style="width:28%;"><col style="width:15%;"><col style="width:12%;"><col style="width:12%;"><col style="width:15%;"><col style="width:11%;">';
-            }
-
-            /* 倉庫欄顯示/隱藏 */
-            var whHdr = document.querySelector('.inv-col-wh-hdr');
-            if (whHdr) whHdr.style.display = isAll ? '' : 'none';
-            document.querySelectorAll('.inv-col-wh').forEach(function (el) {
-                el.style.display = isAll ? '' : 'none';
-            });
-
-            /* 統計卡：全部倉庫時標籤改為「庫存記錄」 */
+            /* 統計卡：桌面/手機共用 */
             var total = items.length;
             var ok = items.filter(function (i) { return i.status === 'ok'; }).length;
             var low = items.filter(function (i) { return i.status === 'low'; }).length;
@@ -208,7 +202,7 @@
                 statCard(low, '低庫存', '#854F0B') +
                 statCard(empty, '缺貨', '#A32D2D');
 
-            /* 排序 */
+            /* 排序：桌面/手機共用 */
             var sorted = items.slice().sort(function (a, b) {
                 var diff;
                 switch (sortCol) {
@@ -224,7 +218,32 @@
                 return diff * sortDir;
             });
 
-            /* 列渲染 */
+            /* 🔧 手機分支：渲染卡片，直接 return，不跑下面桌面版表格邏輯 */
+            if (isMobile) {
+                var listEl = document.getElementById('inv-card-list');
+                var visibleItems = sorted.filter(function (i) {
+                    return currentFilter === 'all' || i.status === currentFilter;
+                });
+                listEl.innerHTML = visibleItems.length
+                    ? visibleItems.map(function (item) { return cardHtml(item, isAll); }).join('')
+                    : '<div class="inv-card-list-empty">此篩選條件下沒有商品</div>';
+                return;
+            }
+
+            /* ↓↓↓ 以下維持原本桌面版邏輯（colgroup / 倉庫欄顯示隱藏 / tbody / 排序圖示）不變 ↓↓↓ */
+            var colgroup = document.getElementById('inv-colgroup');
+            if (colgroup) {
+                colgroup.innerHTML = isAll
+                    ? '<col style="width:20px;"><col style="width:24%;"><col style="width:11%;"><col style="width:13%;"><col style="width:10%;"><col style="width:10%;"><col style="width:13%;"><col style="width:10%;">'
+                    : '<col style="width:20px;"><col style="width:28%;"><col style="width:15%;"><col style="width:12%;"><col style="width:12%;"><col style="width:15%;"><col style="width:11%;">';
+            }
+
+            var whHdr = document.querySelector('.inv-col-wh-hdr');
+            if (whHdr) whHdr.style.display = isAll ? '' : 'none';
+            document.querySelectorAll('.inv-col-wh').forEach(function (el) {
+                el.style.display = isAll ? '' : 'none';
+            });
+
             var tbody = document.getElementById('inv-tbl-body');
             var visible = 0;
             var colspan = isAll ? 8 : 7;
@@ -237,8 +256,6 @@
                     ? '<span class="inv-suggest-num">' + suggest.toLocaleString() + ' <span class="inv-unit">' + escapeHtml(item.unit) + '</span></span>'
                     : '<span class="inv-suggest-zero">—</span>';
                 var detailUrl = '/k/' + appId + '/show#record=' + item.id;
-
-                /* 缺貨/低庫存列加高亮 class */
                 var rowClass = show ? 'inv-row-' + item.status : 'inv-row-hidden';
 
                 return '<tr data-href="' + detailUrl + '" data-status="' + item.status + '" class="' + rowClass + '">' +
@@ -258,7 +275,6 @@
                 tbody.innerHTML = '<tr class="inv-empty-row"><td colspan="' + colspan + '">此篩選條件下沒有商品</td></tr>';
             }
 
-            /* 排序圖示 */
             document.querySelectorAll('#inv-tbl th[data-col]').forEach(function (th) {
                 var col = th.getAttribute('data-col');
                 var icon = th.querySelector('.sort-icon');
@@ -267,11 +283,32 @@
             });
         }
 
+        function cardHtml(item, isAll) {
+            var suggest = Math.max(0, item.safe - item.in);
+            var suggestHtml = suggest > 0
+                ? '<span class="inv-suggest-num">' + suggest.toLocaleString() + ' ' + escapeHtml(item.unit) + '</span>'
+                : '<span class="inv-suggest-zero">—</span>';
+            var detailUrl = '/k/' + appId + '/show#record=' + item.id;
+
+            return '<div class="inv-card inv-card-' + item.status + '" data-href="' + detailUrl + '">' +
+                '<div class="inv-card-top">' +
+                '<div class="inv-card-name">' + escapeHtml(item.name) + '</div>' +
+                '<span class="inv-badge inv-badge-' + item.status + '">' + statusLabel(item.status) + '</span>' +
+                '</div>' +
+                '<div class="inv-card-sub">' + escapeHtml(item.code) +
+                (isAll ? ' · ' + escapeHtml(item.warehouse || '') : '') + '</div>' +
+                '<div class="inv-card-stats">' +
+                '<div class="inv-card-stat"><span class="l">在庫量</span><span class="v">' + item.in.toLocaleString() + ' ' + escapeHtml(item.unit) + '</span></div>' +
+                '<div class="inv-card-stat"><span class="l">安全庫存</span><span class="v">' + item.safe.toLocaleString() + '</span></div>' +
+                '<div class="inv-card-stat"><span class="l">建議補貨</span><span class="v">' + suggestHtml + '</span></div>' +
+                '</div>' +
+                '</div>';
+        }
+
         /* ── 事件綁定 ── */
         document.getElementById('inv-wh-sel').addEventListener('change', renderTable);
 
         document.getElementById('inv-dashboard').addEventListener('click', function (e) {
-            /* 篩選藥丸 */
             var pill = e.target.closest('.inv-pill');
             if (pill) {
                 currentFilter = pill.getAttribute('data-f');
@@ -283,7 +320,6 @@
                 return;
             }
 
-            /* 排序標頭 */
             var th = e.target.closest('th[data-col]');
             if (th) {
                 var col = th.getAttribute('data-col');
@@ -293,7 +329,13 @@
                 return;
             }
 
-            /* 整列點擊跳詳情（排除空狀態列） */
+            /* 🔧 新增：手機卡片點擊跳轉詳情 */
+            var card = e.target.closest('.inv-card[data-href]');
+            if (card) {
+                window.location.href = card.getAttribute('data-href');
+                return;
+            }
+
             var tr = e.target.closest('tr[data-href]');
             if (tr) {
                 window.location.href = tr.getAttribute('data-href');
